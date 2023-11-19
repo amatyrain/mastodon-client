@@ -54,15 +54,13 @@ class MastodonClient:
         # print(response.status_code)
         # pprint.pprint(json.loads(response.text))
 
-        if response.status_code == 200:
-            print("【PosterMastodon】投稿が成功しました。")
-        else:
+        if response.status_code >= 400:
             print("【PosterMastodon】投稿に失敗しました。")
-            errors.append(f"mastodon_api: {response.text}\n{text}")
+            raise Exception(f"mastodon_api: {response.text}\n{text}")
 
         # print('【end】MasterdonApiHandler::post_status()')
 
-        return errors
+        return response.json()
 
     def upload_media(self, media_url):
         # print('【start】MasterdonApiHandler::upload_media()')
