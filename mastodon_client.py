@@ -16,6 +16,7 @@ class MastodonClient:
         visibility: str,
         text: str,
         media_ids: list = [],
+        sensitive: bool = False,
     ) -> list:
         """_summary_
 
@@ -38,6 +39,7 @@ class MastodonClient:
         data = {
             "status": text,
             "visibility": visibility,
+            "sensitive": sensitive,
         }
 
         if len(media_ids) > 0:
