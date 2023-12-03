@@ -17,7 +17,7 @@ class MastodonClient:
         text: str,
         media_ids: list = [],
         sensitive: bool = False,
-    ) -> list:
+    ) -> dict:
         """_summary_
 
         Args:
