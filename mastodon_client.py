@@ -17,6 +17,7 @@ class MastodonClient:
         text: str,
         media_ids: list = [],
         sensitive: bool = False,
+        spoiler_text: str | None = None,
     ) -> dict:
         """_summary_
 
@@ -44,6 +45,9 @@ class MastodonClient:
 
         if len(media_ids) > 0:
             data["media_ids"] = media_ids
+
+        if spoiler_text is not None:
+            data["spoiler_text"] = spoiler_text
 
         # pprint.pprint(data)
 
