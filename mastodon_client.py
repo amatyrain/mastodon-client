@@ -6,10 +6,40 @@ class MastodonClient:
     def __init__(self, base_uri, access_token):
         self.base_uri = base_uri
         self.access_token = access_token
+        self.headers = {
+            "Authorization": f"Bearer {access_token}",
+            "User-Agent": "curl/7.78.0",  # curlのUAを指定
+        }
 
     """_summary_
 
     """
+    def _request(self, method, endpoint, data={}, headers=None):
+        # print('【start】MasterdonApiHandler::_request()')
+
+        url = f"{self.base_uri}{endpoint}"
+
+        if len(headers) == 0:
+            headers = self.headers
+
+        print(f'url: {url}')
+        print(f'method: {method}')
+        print(f'data: {data}')
+
+        try:
+            response = requests.request(
+                method,
+                url,
+                headers=headers,
+                data=json.dumps(data),
+            )
+        except Exception as e:
+            print(f"【MasterdonApiHandler】{e}")
+            raise Exception(f"【MasterdonApiHandler】{e}")
+
+        # print('【end】MasterdonApiHandler::_request()')
+
+        return response
 
     def post(
         self,
@@ -94,3 +124,88 @@ class MastodonClient:
         # print('【end】MasterdonApiHandler::upload_media()')
 
         return media_id
+
+    def get_account(self, account_id):
+        # print('【start】MasterdonApiHandler::get_account()')
+
+        endpoint = f"/api/v1/accounts/{account_id}"
+        method = "GET"
+
+        access_token = self.access_token
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "User-Agent": "curl/7.78.0",  # curlのUAを指定
+        }
+
+        response = self._request(
+            method=method,
+            endpoint=endpoint,
+            headers=headers
+        )
+
+        # print('【end】MasterdonApiHandler::get_account()')
+
+        return response.json()
+
+    def get_account_statuses(self, account_id):
+        # print('【start】MasterdonApiHandler::get_account_statuses()')
+
+        endpoint = f"/api/v1/accounts/{account_id}/statuses"
+        url = f"{self.base_uri}{endpoint}"
+
+        access_token = self.access_token
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "User-Agent": "curl/7.78.0",  # curlのUAを指定
+        }
+
+        response = requests.get(url, headers=headers)
+
+        # print('【end】MasterdonApiHandler::get_account_statuses()')
+
+        return response.json()
+
+    def get_account_followers(self, account_id):
+        # print('【start】MasterdonApiHandler::get_account_followers()')
+
+        endpoint = f"/api/v1/accounts/{account_id}/followers"
+        method = "GET"
+        url = f"{self.base_uri}{endpoint}"
+
+        access_token = self.access_token
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "User-Agent": "curl/7.78.0",  # curlのUAを指定
+        }
+
+        response = self._request(
+            method=method,
+            endpoint=endpoint,
+            headers=headers
+        )
+
+        # print('【end】MasterdonApiHandler::get_account_followers()')
+
+        return response.json()
+
+    def get_account_credentials(self):
+        # print('【start】MasterdonApiHandler::get_account_credentials()')
+
+        endpoint = "/api/v1/accounts/verify_credentials"
+        method = "GET"
+
+        access_token = self.access_token
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "User-Agent": "curl/7.78.0",  # curlのUAを指定
+        }
+
+        response = self._request(
+            method=method,
+            endpoint=endpoint,
+            headers=headers
+        )
+
+        # print('【end】MasterdonApiHandler::get_account_credentials()')
+
+        return response.json()
