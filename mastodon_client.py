@@ -14,17 +14,18 @@ class MastodonClient:
     """_summary_
 
     """
-    def _request(self, method, endpoint, data={}, headers=None):
-        # print('【start】MasterdonApiHandler::_request()')
+    def _request(self, method, endpoint, data={}, params=None, headers=None):
+        # print('【start】MastodonClient::_request()')
 
         url = f"{self.base_uri}{endpoint}"
 
-        if len(headers) == 0:
+        if headers is None:
             headers = self.headers
 
         print(f'url: {url}')
         print(f'method: {method}')
         print(f'data: {data}')
+        print(f'params: {params}')
 
         try:
             response = requests.request(
@@ -32,12 +33,13 @@ class MastodonClient:
                 url,
                 headers=headers,
                 data=json.dumps(data),
+                params=params
             )
         except Exception as e:
-            print(f"【MasterdonApiHandler】{e}")
-            raise Exception(f"【MasterdonApiHandler】{e}")
+            print(f"【MastodonClient】{e}")
+            raise Exception(f"【MastodonClient】{e}")
 
-        # print('【end】MasterdonApiHandler::_request()')
+        # print('【end】MastodonClient::_request()')
 
         return response
 
@@ -56,9 +58,8 @@ class MastodonClient:
             text (str): _description_
             media_ids (list): _description_
         """
-        # print('【start】MasterdonApiHandler::post_status()')
+        # print('【start】MastodonClient::post_status()')
 
-        errors = []
         endpoint = "/api/v1/statuses"
         url = f"{self.base_uri}{endpoint}"
         access_token = self.access_token
@@ -94,12 +95,12 @@ class MastodonClient:
             print("【PosterMastodon】投稿に失敗しました。")
             raise Exception(f"mastodon_api: {response.text}\n{text}")
 
-        # print('【end】MasterdonApiHandler::post_status()')
+        # print('【end】MastodonClient::post_status()')
 
         return response.json()
 
     def upload_media(self, media_url):
-        # print('【start】MasterdonApiHandler::upload_media()')
+        # print('【start】MastodonClient::upload_media()')
 
         endpoint = "/api/v2/media"
         url = f"{self.base_uri}{endpoint}"
@@ -121,12 +122,12 @@ class MastodonClient:
         response = requests.post(url, headers=headers, files=files)
         media_id = response.json()["id"]
 
-        # print('【end】MasterdonApiHandler::upload_media()')
+        # print('【end】MastodonClient::upload_media()')
 
         return media_id
 
     def get_account(self, account_id):
-        # print('【start】MasterdonApiHandler::get_account()')
+        # print('【start】MastodonClient::get_account()')
 
         endpoint = f"/api/v1/accounts/{account_id}"
         method = "GET"
@@ -143,12 +144,12 @@ class MastodonClient:
             headers=headers
         )
 
-        # print('【end】MasterdonApiHandler::get_account()')
+        # print('【end】MastodonClient::get_account()')
 
         return response.json()
 
     def get_account_statuses(self, account_id):
-        # print('【start】MasterdonApiHandler::get_account_statuses()')
+        # print('【start】MastodonClient::get_account_statuses()')
 
         endpoint = f"/api/v1/accounts/{account_id}/statuses"
         url = f"{self.base_uri}{endpoint}"
@@ -161,12 +162,12 @@ class MastodonClient:
 
         response = requests.get(url, headers=headers)
 
-        # print('【end】MasterdonApiHandler::get_account_statuses()')
+        # print('【end】MastodonClient::get_account_statuses()')
 
         return response.json()
 
     def get_account_followers(self, account_id):
-        # print('【start】MasterdonApiHandler::get_account_followers()')
+        # print('【start】MastodonClient::get_account_followers()')
 
         endpoint = f"/api/v1/accounts/{account_id}/followers"
         method = "GET"
@@ -184,12 +185,12 @@ class MastodonClient:
             headers=headers
         )
 
-        # print('【end】MasterdonApiHandler::get_account_followers()')
+        # print('【end】MastodonClient::get_account_followers()')
 
         return response.json()
 
     def get_account_credentials(self):
-        # print('【start】MasterdonApiHandler::get_account_credentials()')
+        # print('【start】MastodonClient::get_account_credentials()')
 
         endpoint = "/api/v1/accounts/verify_credentials"
         method = "GET"
@@ -206,6 +207,50 @@ class MastodonClient:
             headers=headers
         )
 
-        # print('【end】MasterdonApiHandler::get_account_credentials()')
+        # print('【end】MastodonClient::get_account_credentials()')
+
+        return response.json()
+
+    def search(
+        self,
+        q,
+        resolve=False,
+        limit=20,
+        type=None,
+    ):
+        """_summary_
+
+        Args:
+            q (_type_): _description_
+            resolve (bool, optional): WebFinger検索を行うかどうか. Defaults to False.
+            limit (int, optional): _description_. Defaults to 20.
+            type (_type_, optional): String. Specify whether to search for only accounts, hashtags, statuses. Defaults to None.
+
+        Returns:
+            _type_: _description_
+
+        refs: https://docs.joinmastodon.org/methods/search/
+        """
+        # print('【start】MastodonClient::search()')
+
+        endpoint = "/api/v2/search"
+        method = "GET"
+
+        request_params = {
+            "q": q,
+            "resolve": resolve,
+            "limit": limit,
+        }
+
+        if type is not None:
+            request_params["type"] = type
+
+        response = self._request(
+            method=method,
+            endpoint=endpoint,
+            params=request_params
+        )
+
+        # print('【end】MastodonClient::search()')
 
         return response.json()
