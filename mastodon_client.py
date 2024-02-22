@@ -217,14 +217,16 @@ class MastodonClient:
         resolve=False,
         limit=20,
         type=None,
+        min_id: str | None = None,
     ):
         """_summary_
 
         Args:
             q (_type_): _description_
             resolve (bool, optional): WebFinger検索を行うかどうか. Defaults to False.
-            limit (int, optional): _description_. Defaults to 20.
+            limit: Integer. Maximum number of results to return, per type. Defaults to 20 results per category. Max 40 results per category.
             type (_type_, optional): String. Specify whether to search for only accounts, hashtags, statuses. Defaults to None.
+            min_id: String. Returns results immediately newer than this ID. In effect, sets a cursor at this ID and paginates forward.
 
         Returns:
             _type_: _description_
@@ -244,6 +246,8 @@ class MastodonClient:
 
         if type is not None:
             request_params["type"] = type
+        if min_id is not None:
+            request_params["min_id"] = min_id
 
         response = self._request(
             method=method,
