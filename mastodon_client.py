@@ -11,14 +11,10 @@ class MastodonClient:
             "User-Agent": "curl/7.78.0",  # curlのUAを指定
         }
 
-    """_summary_
-
-    """
-    def _request(self, method, endpoint, data={}, params=None, headers=None):
-        # print('【start】MastodonClient::_request()')
-
-        url = f"{self.base_uri}{endpoint}"
-
+    def _request(
+        self, url: str, method: str, headers: dict,
+        params=None, data=None, files=None,
+    ):
         if headers is None:
             headers = self.headers
 
@@ -27,21 +23,21 @@ class MastodonClient:
         print(f'data: {data}')
         print(f'params: {params}')
 
-        try:
-            response = requests.request(
-                method,
-                url,
-                headers=headers,
-                data=json.dumps(data),
-                params=params
-            )
-        except Exception as e:
-            print(f"【MastodonClient】{e}")
-            raise Exception(f"【MastodonClient】{e}")
+        response = requests.request(
+            url=url,
+            method=method,
+            headers=headers,
+            data=json.dumps(data),
+            params=params,
+            files=files,
+        )
+        return_response = response.json() if hasattr(response, "json") else response.text
 
-        # print('【end】MastodonClient::_request()')
+        if response.status_code >= 400:
+            print(f"Error: {return_response}")
+            raise Exception(f'Error: {return_response}')
 
-        return response
+        return return_response
 
     def post(
         self,
@@ -60,6 +56,7 @@ class MastodonClient:
         """
         # print('【start】MastodonClient::post_status()')
 
+        method = "POST"
         endpoint = "/api/v1/statuses"
         url = f"{self.base_uri}{endpoint}"
         access_token = self.access_token
@@ -82,26 +79,17 @@ class MastodonClient:
 
         # pprint.pprint(data)
 
-        response = requests.post(
-            url,
+        return self._request(
+            url=url,
+            method=method,
             headers=headers,
             data=json.dumps(data),
         )
 
-        # print(response.status_code)
-        # pprint.pprint(json.loads(response.text))
-
-        if response.status_code >= 400:
-            print("【PosterMastodon】投稿に失敗しました。")
-            raise Exception(f"mastodon_api: {response.text}\n{text}")
-
-        # print('【end】MastodonClient::post_status()')
-
-        return response.json()
-
     def upload_media(self, media_url):
         # print('【start】MastodonClient::upload_media()')
 
+        method = "POST"
         endpoint = "/api/v2/media"
         url = f"{self.base_uri}{endpoint}"
 
@@ -119,8 +107,13 @@ class MastodonClient:
             "file": binary_data,
         }
 
-        response = requests.post(url, headers=headers, files=files)
-        media_id = response.json()["id"]
+        response = self._request(
+            url=url,
+            method=method,
+            headers=headers,
+            files=files,
+        )
+        media_id = response["id"]
 
         # print('【end】MastodonClient::upload_media()')
 
