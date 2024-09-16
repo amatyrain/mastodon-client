@@ -13,21 +13,21 @@ class MastodonClient:
 
     def _request(
         self, url: str, method: str, headers: dict,
-        params=None, data=None, files=None,
+        params=None, json: dict|None = None, files=None,
     ):
         if headers is None:
             headers = self.headers
 
         print(f'url: {url}')
         print(f'method: {method}')
-        print(f'data: {data}')
+        print(f'json: {json}')
         print(f'params: {params}')
 
         response = requests.request(
             url=url,
             method=method,
             headers=headers,
-            data=json.dumps(data),
+            json=json,
             params=params,
             files=files,
         )
@@ -65,17 +65,17 @@ class MastodonClient:
             "User-Agent": "curl/7.78.0",  # curlのUAを指定
             "Content-Type": "application/json",
         }
-        data = {
+        json = {
             "status": text,
             "visibility": visibility,
             "sensitive": sensitive,
         }
 
         if len(media_ids) > 0:
-            data["media_ids"] = media_ids
+            json["media_ids"] = media_ids
 
         if spoiler_text is not None:
-            data["spoiler_text"] = spoiler_text
+            json["spoiler_text"] = spoiler_text
 
         # pprint.pprint(data)
 
@@ -83,7 +83,7 @@ class MastodonClient:
             url=url,
             method=method,
             headers=headers,
-            data=json.dumps(data),
+            json=json,
         )
 
     def upload_media(self, media_url):
@@ -99,12 +99,16 @@ class MastodonClient:
             "User-Agent": "curl/7.78.0",  # curlのUAを指定
         }
 
-        # url to media binary data
+        # URLからメディアのバイナリデータを取得
         response = requests.get(media_url)
         binary_data = response.content
 
+        # ファイル名を生成（URLの最後の部分を使用）
+        file_name = media_url.split('/')[-1]
+
+        # filesパラメータを正しく設定
         files = {
-            "file": binary_data,
+            "file": (file_name, binary_data, "application/octet-stream")
         }
 
         response = self._request(
