@@ -12,7 +12,7 @@ class MastodonClient:
         }
 
     def _request(
-        self, url: str, method: str, headers: dict,
+        self, url: str, method: str, headers: dict|None = None,
         params=None, json: dict|None = None, files=None,
     ):
         if headers is None:
@@ -128,6 +128,7 @@ class MastodonClient:
 
         endpoint = f"/api/v1/accounts/{account_id}"
         method = "GET"
+        url = f"{self.base_uri}{endpoint}"
 
         access_token = self.access_token
         headers = {
@@ -136,8 +137,8 @@ class MastodonClient:
         }
 
         response = self._request(
+            url=url,
             method=method,
-            endpoint=endpoint,
             headers=headers
         )
 
@@ -177,8 +178,8 @@ class MastodonClient:
         }
 
         response = self._request(
+            url=url,
             method=method,
-            endpoint=endpoint,
             headers=headers
         )
 
@@ -191,6 +192,7 @@ class MastodonClient:
 
         endpoint = "/api/v1/accounts/verify_credentials"
         method = "GET"
+        url = f"{self.base_uri}{endpoint}"
 
         access_token = self.access_token
         headers = {
@@ -199,8 +201,8 @@ class MastodonClient:
         }
 
         response = self._request(
+            url=url,
             method=method,
-            endpoint=endpoint,
             headers=headers
         )
 
@@ -234,6 +236,7 @@ class MastodonClient:
 
         endpoint = "/api/v2/search"
         method = "GET"
+        url = f"{self.base_uri}{endpoint}"
 
         request_params = {
             "q": q,
@@ -247,8 +250,8 @@ class MastodonClient:
             request_params["min_id"] = min_id
 
         response = self._request(
+            url=url,
             method=method,
-            endpoint=endpoint,
             params=request_params
         )
 
