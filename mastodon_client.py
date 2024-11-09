@@ -185,7 +185,7 @@ class MastodonClient:
 
         # print('【end】MastodonClient::get_account_followers()')
 
-        return response.json()
+        return response
 
     def get_account_credentials(self):
         # print('【start】MastodonClient::get_account_credentials()')
@@ -208,7 +208,7 @@ class MastodonClient:
 
         # print('【end】MastodonClient::get_account_credentials()')
 
-        return response.json()
+        return response
 
     def search(
         self,
