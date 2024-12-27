@@ -1,5 +1,6 @@
 import json
 import requests
+import inspect
 
 
 class MastodonClient:
@@ -12,16 +13,21 @@ class MastodonClient:
         }
 
     def _request(
-        self, url: str, method: str, headers: dict|None = None,
-        params=None, json: dict|None = None, files=None,
+        self,
+        url: str,
+        method: str,
+        headers: dict | None = None,
+        params=None,
+        json: dict | None = None,
+        files=None,
     ):
         if headers is None:
             headers = self.headers
 
-        print(f'url: {url}')
-        print(f'method: {method}')
-        print(f'json: {json}')
-        print(f'params: {params}')
+        print(f"url: {url}")
+        print(f"method: {method}")
+        print(f"json: {json}")
+        print(f"params: {params}")
 
         response = requests.request(
             url=url,
@@ -31,11 +37,13 @@ class MastodonClient:
             params=params,
             files=files,
         )
-        return_response = response.json() if hasattr(response, "json") else response.text
+        return_response = (
+            response.json() if hasattr(response, "json") else response.text
+        )
 
         if response.status_code >= 400:
             print(f"Error: {return_response}")
-            raise Exception(f'Error: {return_response}')
+            raise Exception(f"Error: {return_response}")
 
         return return_response
 
@@ -47,14 +55,11 @@ class MastodonClient:
         sensitive: bool = False,
         spoiler_text: str | None = None,
     ) -> dict:
-        """_summary_
-
-        Args:
-            visibility (str): public, unlisted, private, direct
-            text (str): _description_
-            media_ids (list): _description_
-        """
-        # print('【start】MastodonClient::post_status()')
+        current_frame = inspect.currentframe()
+        method_name = (
+            current_frame.f_code.co_name if current_frame else "unknown_method"
+        )
+        print(f"【start】{self.__class__.__name__}::{method_name}")
 
         method = "POST"
         endpoint = "/api/v1/statuses"
@@ -104,12 +109,10 @@ class MastodonClient:
         binary_data = response.content
 
         # ファイル名を生成（URLの最後の部分を使用）
-        file_name = media_url.split('/')[-1]
+        file_name = media_url.split("/")[-1]
 
         # filesパラメータを正しく設定
-        files = {
-            "file": (file_name, binary_data, "application/octet-stream")
-        }
+        files = {"file": (file_name, binary_data, "application/octet-stream")}
 
         response = self._request(
             url=url,
@@ -136,11 +139,7 @@ class MastodonClient:
             "User-Agent": "curl/7.78.0",  # curlのUAを指定
         }
 
-        response = self._request(
-            url=url,
-            method=method,
-            headers=headers
-        )
+        response = self._request(url=url, method=method, headers=headers)
 
         # print('【end】MastodonClient::get_account()')
 
@@ -177,11 +176,7 @@ class MastodonClient:
             "User-Agent": "curl/7.78.0",  # curlのUAを指定
         }
 
-        response = self._request(
-            url=url,
-            method=method,
-            headers=headers
-        )
+        response = self._request(url=url, method=method, headers=headers)
 
         # print('【end】MastodonClient::get_account_followers()')
 
@@ -200,11 +195,7 @@ class MastodonClient:
             "User-Agent": "curl/7.78.0",  # curlのUAを指定
         }
 
-        response = self._request(
-            url=url,
-            method=method,
-            headers=headers
-        )
+        response = self._request(url=url, method=method, headers=headers)
 
         # print('【end】MastodonClient::get_account_credentials()')
 
@@ -249,11 +240,7 @@ class MastodonClient:
         if min_id is not None:
             request_params["min_id"] = min_id
 
-        response = self._request(
-            url=url,
-            method=method,
-            params=request_params
-        )
+        response = self._request(url=url, method=method, params=request_params)
 
         # print('【end】MastodonClient::search()')
 
