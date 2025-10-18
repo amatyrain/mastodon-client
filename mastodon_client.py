@@ -23,6 +23,8 @@ class MastodonClient:
         json: dict | None = None,
         files=None,
         expect_json: bool = True,
+        retries: int = 3,
+        timeout: int = 10,
     ):
         if headers is None:
             headers = self.headers
@@ -32,14 +34,41 @@ class MastodonClient:
         print(f"json: {json}")
         print(f"params: {params}")
 
-        response = requests.request(
-            url=url,
-            method=method,
-            headers=headers,
-            json=json,
-            params=params,
-            files=files,
-        )
+        attempt = 0
+        response = None
+        last_exc: Exception | None = None
+        while attempt < retries:
+            try:
+                response = requests.request(
+                    url=url,
+                    method=method,
+                    headers=headers,
+                    json=json,
+                    params=params,
+                    files=files,
+                    timeout=timeout,
+                )
+            except requests.exceptions.RequestException as e:
+                last_exc = e
+                attempt += 1
+                if attempt < retries:
+                    backoff = 2 ** (attempt - 1) * 0.5
+                    print(f"Transient error on request ({e}), retrying in {backoff}s...")
+                    time.sleep(backoff)
+                    continue
+                else:
+                    raise Exception(f"Request failed after {retries} attempts: {e}")
+            # if we got a response, check status
+            if response is not None and response.status_code >= 500:
+                # transient server error; retry
+                attempt += 1
+                if attempt < retries:
+                    backoff = 2 ** (attempt - 1) * 0.5
+                    print(f"Server error {response.status_code}, retrying in {backoff}s...")
+                    time.sleep(backoff)
+                    continue
+                # no more retries, will fall through to error handling below
+            break
 
         # Try to parse JSON safely; fall back to text without raising JSONDecodeError
         return_response = None
