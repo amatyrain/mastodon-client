@@ -1,6 +1,7 @@
-import json
+import json as jsonlib
 import requests
 import inspect
+import time
 
 
 class MastodonClient:
@@ -10,6 +11,7 @@ class MastodonClient:
         self.headers = {
             "Authorization": f"Bearer {access_token}",
             "User-Agent": "curl/7.78.0",  # curlのUAを指定
+            "Accept": "application/json",
         }
 
     def _request(
@@ -20,6 +22,7 @@ class MastodonClient:
         params=None,
         json: dict | None = None,
         files=None,
+        expect_json: bool = True,
     ):
         if headers is None:
             headers = self.headers
@@ -37,13 +40,34 @@ class MastodonClient:
             params=params,
             files=files,
         )
-        return_response = (
-            response.json() if hasattr(response, "json") else response.text
-        )
+
+        # Try to parse JSON safely; fall back to text without raising JSONDecodeError
+        return_response = None
+        content_type = response.headers.get("Content-Type", "") if hasattr(response, "headers") else ""
+        parsed_json = None
+        if expect_json or ("json" in content_type.lower()):
+            try:
+                parsed_json = response.json()
+            except Exception:
+                parsed_json = None
+        return_response = parsed_json if parsed_json is not None else response.text
 
         if response.status_code >= 400:
-            print(f"Error: {return_response}")
-            raise Exception(f"Error: {return_response}")
+            # Build a helpful error with status, method, url and a small body preview
+            body_preview = return_response
+            if isinstance(body_preview, (dict, list)):
+                try:
+                    body_preview = jsonlib.dumps(body_preview)
+                except Exception:
+                    body_preview = str(body_preview)
+            if isinstance(body_preview, str) and len(body_preview) > 500:
+                body_preview = body_preview[:500] + "..."
+            err_msg = (
+                f"HTTP {response.status_code} for {method} {url}; "
+                f"params={params} json={json}; body={body_preview}"
+            )
+            print(f"Error: {err_msg}")
+            raise Exception(err_msg)
 
         return return_response
 
@@ -84,12 +108,21 @@ class MastodonClient:
 
         # pprint.pprint(data)
 
-        return self._request(
+        response = self._request(
             url=url,
             method=method,
             headers=headers,
             json=json,
         )
+        if not isinstance(response, dict):
+            raise Exception(
+                f"Unexpected response from Mastodon post API; expected JSON, got: {str(response)[:200]}"
+            )
+        if "id" not in response:
+            raise Exception(
+                f"Mastodon post API response missing 'id': {json} -> {str(response)[:200]}"
+            )
+        return response
 
     def upload_media(self, media_url):
         # print('【start】MastodonClient::upload_media()')
@@ -114,13 +147,32 @@ class MastodonClient:
         # filesパラメータを正しく設定
         files = {"file": (file_name, binary_data, "application/octet-stream")}
 
-        response = self._request(
-            url=url,
-            method=method,
-            headers=headers,
-            files=files,
-        )
-        media_id = response["id"]
+        last_exc: Exception | None = None
+        for attempt in range(2):
+            try:
+                response = self._request(
+                    url=url,
+                    method=method,
+                    headers=headers,
+                    files=files,
+                )
+                if not isinstance(response, dict):
+                    raise Exception(
+                        f"Unexpected response from Mastodon media API; expected JSON, got: {str(response)[:200]}"
+                    )
+                if "id" not in response:
+                    raise Exception(
+                        f"Mastodon media API response missing 'id' for file '{file_name}'"
+                    )
+                media_id = response["id"]
+                break
+            except Exception as e:
+                last_exc = e
+                if attempt == 0:
+                    time.sleep(0.5)
+                    continue
+                else:
+                    raise
 
         # print('【end】MastodonClient::upload_media()')
 
@@ -143,7 +195,7 @@ class MastodonClient:
 
         # print('【end】MastodonClient::get_account()')
 
-        return response.json()
+        return response
 
     def get_account_statuses(self, account_id):
         # print('【start】MastodonClient::get_account_statuses()')
@@ -244,4 +296,4 @@ class MastodonClient:
 
         # print('【end】MastodonClient::search()')
 
-        return response.json()
+        return response
