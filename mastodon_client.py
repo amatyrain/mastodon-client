@@ -52,7 +52,8 @@ class MastodonClient:
                 last_exc = e
                 attempt += 1
                 if attempt < retries:
-                    backoff = 2 ** (attempt - 1) * 0.5
+                    # ネットワークエラーの場合は2秒から開始して指数バックオフ
+                    backoff = 2 ** attempt
                     print(f"Transient error on request ({e}), retrying in {backoff}s...")
                     time.sleep(backoff)
                     continue
@@ -60,14 +61,21 @@ class MastodonClient:
                     raise Exception(f"Request failed after {retries} attempts: {e}")
             # if we got a response, check status
             if response is not None and response.status_code >= 500:
-                # transient server error; retry
+                # transient server error (500, 502, 503, etc.); retry
                 attempt += 1
                 if attempt < retries:
-                    backoff = 2 ** (attempt - 1) * 0.5
-                    print(f"Server error {response.status_code}, retrying in {backoff}s...")
+                    # 503エラーは特に長く待つ（サーバー過負荷対策）
+                    if response.status_code == 503:
+                        backoff = 2 ** (attempt + 1)  # より長いバックオフ
+                    else:
+                        backoff = 2 ** attempt
+                    print(f"Server error {response.status_code} "
+                          f"(retry {attempt}/{retries}) waiting {backoff}s...")
                     time.sleep(backoff)
                     continue
                 # no more retries, will fall through to error handling below
+                print(f"Server error {response.status_code} "
+                      f"persisted after {retries} attempts")
             break
 
         # Try to parse JSON safely; fall back to text without raising JSONDecodeError
@@ -173,39 +181,57 @@ class MastodonClient:
         # ファイル名を生成（URLの最後の部分を使用）
         file_name = media_url.split("/")[-1]
 
-        # filesパラメータを正しく設定
-        files = {"file": (file_name, binary_data, "application/octet-stream")}
+        # Content-Typeをレスポンスヘッダーから取得、フォールバックで拡張子から推定
+        content_type = response.headers.get('Content-Type',
+                                            'application/octet-stream')
 
-        last_exc: Exception | None = None
-        for attempt in range(2):
-            try:
-                response = self._request(
-                    url=url,
-                    method=method,
-                    headers=headers,
-                    files=files,
-                )
-                if not isinstance(response, dict):
-                    raise Exception(
-                        f"Unexpected response from Mastodon media API; expected JSON, got: {str(response)[:200]}"
-                    )
-                if "id" not in response:
-                    raise Exception(
-                        f"Mastodon media API response missing 'id' for file '{file_name}'"
-                    )
-                media_id = response["id"]
-                break
-            except Exception as e:
-                last_exc = e
-                if attempt == 0:
-                    time.sleep(0.5)
-                    continue
-                else:
-                    raise
+        # SVGはMastodonで受け付けられない場合があるのでPNGに変換を提案
+        if 'svg' in content_type.lower():
+            print(f"Warning: SVG detected ({content_type}). "
+                  f"Some Mastodon instances may not support SVG uploads.")
+            # SVGの場合はそのまま試すが、警告を出す
+            content_type = 'image/svg+xml'
+
+        # 拡張子ベースのフォールバック
+        if content_type == 'application/octet-stream' or not content_type:
+            if file_name.lower().endswith(('.jpg', '.jpeg')):
+                content_type = 'image/jpeg'
+            elif file_name.lower().endswith('.png'):
+                content_type = 'image/png'
+            elif file_name.lower().endswith('.gif'):
+                content_type = 'image/gif'
+            elif file_name.lower().endswith('.webp'):
+                content_type = 'image/webp'
+            elif file_name.lower().endswith('.svg'):
+                content_type = 'image/svg+xml'
+            else:
+                content_type = 'image/jpeg'  # デフォルト
+
+        # filesパラメータを正しく設定
+        files = {"file": (file_name, binary_data, content_type)}
+
+        # _requestメソッドの完全なリトライ機能を活用（503エラーにも対応）
+        # retries=5: 2秒→4秒→8秒→16秒と待機（合計約30秒）
+        response = self._request(
+            url=url,
+            method=method,
+            headers=headers,
+            files=files,
+            retries=5,
+            timeout=30,  # メディアアップロードは時間がかかる可能性があるのでタイムアウトを延長
+        )
+        if not isinstance(response, dict):
+            raise Exception(
+                f"Unexpected response from Mastodon media API; expected JSON, got: {str(response)[:200]}"
+            )
+        if "id" not in response:
+            raise Exception(
+                f"Mastodon media API response missing 'id' for file '{file_name}'"
+            )
 
         # print('【end】MastodonClient::upload_media()')
 
-        return media_id
+        return response["id"]
 
     def get_account(self, account_id):
         # print('【start】MastodonClient::get_account()')
